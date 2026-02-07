@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useAuthStore } from '@/lib/store'
+import { useAuthStore, useCartStore } from '@/lib/store'
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -42,6 +42,11 @@ export default function RegisterPage() {
     setError('')
 
     try {
+      // Phone number length validation
+      if (formData.phone.length !== 10) {
+        throw new Error('Phone number must be exactly 10 digits')
+      }
+
       const payload = {
         ...formData,
         businessInfo: formData.role === 'reseller' ? formData.businessInfo : undefined
@@ -63,6 +68,9 @@ export default function RegisterPage() {
 
       login(data.user, data.token)
 
+      // New registrations start as non-B2B until verified
+      useCartStore.getState().setIsB2B(false)
+
       // Redirect based on user role
       if (data.user.role === 'reseller') {
         router.push('/reseller')
@@ -77,13 +85,55 @@ export default function RegisterPage() {
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+
+    // Numeric only validation for phone, capped at 10 digits
+    if (name === 'phone') {
+      const numericValue = value.replace(/[^0-9]/g, '').slice(0, 10)
+      setFormData(prev => ({ ...prev, [name]: numericValue }))
+      return
+    }
+
+    // Letters only for name
+    if (name === 'name') {
+      const alphaValue = value.replace(/[^a-zA-Z\s]/g, '')
+      setFormData(prev => ({ ...prev, [name]: alphaValue }))
+      return
+    }
+
     setFormData(prev => ({
       ...prev,
-      [e.target.name]: e.target.value
+      [name]: value
     }))
   }
 
   const handleBusinessInfoChange = (field: string, value: string) => {
+    // Numeric only validation for GST and PIN code
+    if (field === 'gstNumber' || field === 'pincode') {
+      const numericValue = value.replace(/[^0-9]/g, '')
+      setFormData(prev => ({
+        ...prev,
+        businessInfo: {
+          ...prev.businessInfo,
+          [field]: numericValue
+        }
+      }))
+      return
+    }
+
+    // Letters only for certain business fields
+    if (field === 'businessName' || field === 'city' || field === 'state') {
+      const alphaValue = value.replace(/[^a-zA-Z\s]/g, '')
+      setFormData(prev => ({
+        ...prev,
+        businessInfo: {
+          ...prev.businessInfo,
+          [field]: alphaValue
+        }
+      }))
+      return
+    }
+
     setFormData(prev => ({
       ...prev,
       businessInfo: {
@@ -180,10 +230,12 @@ export default function RegisterPage() {
                   <Input
                     id="phone"
                     name="phone"
-                    type="tel"
+                    type="text"
+                    inputMode="numeric"
                     placeholder="Enter your phone number"
                     value={formData.phone}
                     onChange={handleChange}
+                    required
                     className="bg-gray-50 border-gray-200 focus:border-yellow-400 focus:ring-yellow-400"
                   />
                 </div>
@@ -257,13 +309,15 @@ export default function RegisterPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="gstNumber">GST Number (Optional)</Label>
+                      <Label htmlFor="gstNumber">GST Number</Label>
                       <Input
                         id="gstNumber"
                         type="text"
+                        inputMode="numeric"
                         placeholder="Enter GST number"
                         value={formData.businessInfo.gstNumber}
                         onChange={(e) => handleBusinessInfoChange('gstNumber', e.target.value)}
+                        required
                         className="bg-white border-gray-200 focus:border-yellow-400 focus:ring-yellow-400"
                       />
                     </div>
@@ -273,6 +327,7 @@ export default function RegisterPage() {
                       <Input
                         id="pincode"
                         type="text"
+                        inputMode="numeric"
                         placeholder="Enter PIN code"
                         value={formData.businessInfo.pincode}
                         onChange={(e) => handleBusinessInfoChange('pincode', e.target.value)}

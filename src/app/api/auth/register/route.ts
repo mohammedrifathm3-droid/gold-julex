@@ -1,20 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { hashPassword, generateToken } from '@/lib/auth'
-import { UserRole } from '@prisma/client'
 
 export async function POST(request: NextRequest) {
   try {
     const { email, password, name, phone, role = 'customer', businessInfo } = await request.json()
 
-    // Check if user already exists
-    const existingUser = await db.user.findUnique({
-      where: { email }
+    // Check if user already exists by email or phone
+    const existingUser = await db.user.findFirst({
+      where: {
+        OR: [
+          { email },
+          { phone: phone || undefined }
+        ]
+      }
     })
 
     if (existingUser) {
       return NextResponse.json(
-        { error: 'User already exists' },
+        { error: 'User with this email or phone number already exists' },
         { status: 400 }
       )
     }
@@ -29,7 +33,7 @@ export async function POST(request: NextRequest) {
         password: hashedPassword,
         name,
         phone,
-        role: role as UserRole
+        role: role as string
       }
     })
 
@@ -56,14 +60,35 @@ export async function POST(request: NextRequest) {
       role: user.role
     })
 
+    // Fetch updated user with reseller info
+    const updatedUser = await db.user.findUnique({
+      where: { id: user.id },
+      include: { reseller: true }
+    })
+
+    if (!updatedUser) {
+      return NextResponse.json({
+        message: 'User created successfully',
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role
+        }
+      })
+    }
+
     return NextResponse.json({
       message: 'User created successfully',
       token,
       user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role
+        id: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        phone: updatedUser.phone,
+        role: updatedUser.role,
+        reseller: updatedUser.reseller
       }
     })
 

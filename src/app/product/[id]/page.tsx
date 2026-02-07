@@ -11,6 +11,12 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   Heart,
   Share2,
   ShoppingCart,
@@ -58,6 +64,7 @@ interface Product {
     claspType?: string
     warranty?: string
   }
+  sizes?: string[]
   careInstructions?: string[]
   shippingInfo?: {
     processingTime: string
@@ -81,6 +88,7 @@ export default function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1)
   const [selectedSize, setSelectedSize] = useState<string>('')
   const [showAddedToCart, setShowAddedToCart] = useState(false)
+  const [showSizeGuide, setShowSizeGuide] = useState(false)
 
   const isWishlisted = product ? isInWishlist(product.id) : false
 
@@ -99,6 +107,9 @@ export default function ProductDetailPage() {
           const data = await response.json()
           console.log('Product data:', data) // Debugging
           setProduct(data)
+          if (data.sizes && data.sizes.length > 0) {
+            setSelectedSize(data.sizes[0])
+          }
         } else {
           console.error('Product not found')
         }
@@ -454,15 +465,19 @@ export default function ProductDetailPage() {
               </div>
             </div>
 
-            {/* Ring Size Selection */}
-            {product.category.slug === 'rings' && (
+            {product.category.slug === 'rings' && product.sizes && product.sizes.length > 0 && (
               <div className="space-y-3 pb-4 border-b border-gray-200">
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-deep-900">Select Ring Size:</span>
-                  <span className="text-sm text-yellow-600 font-medium">Size Guide</span>
+                  <button
+                    onClick={() => setShowSizeGuide(true)}
+                    className="text-sm text-yellow-600 font-medium hover:text-yellow-700 transition-colors"
+                  >
+                    Size Guide
+                  </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {['6', '7', '8', '9', '10'].map((size) => (
+                  {product.sizes.map((size) => (
                     <button
                       key={size}
                       onClick={() => setSelectedSize(size)}
@@ -654,6 +669,71 @@ export default function ProductDetailPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <Dialog open={showSizeGuide} onOpenChange={setShowSizeGuide}>
+        <DialogContent className="max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-display font-bold text-deep-900 border-b pb-4">
+              Ring Size Guide
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-6">
+            <div className="bg-yellow-50 p-4 rounded-lg mb-6 border border-yellow-100">
+              <p className="text-sm text-yellow-800 flex items-start gap-2">
+                <Sparkles className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <span>All our rings follow standard US sizing. For the best fit, measure the inside diameter of a ring that fits you well.</span>
+              </p>
+            </div>
+
+            <div className="overflow-hidden border rounded-xl">
+              <table className="w-full text-sm text-black">
+                <thead>
+                  <tr className="bg-gray-50 border-b">
+                    <th className="px-4 py-3 text-left font-semibold text-gray-900">US Size</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-900">Inside Diameter</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-900">Circumference</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y text-black">
+                  {[
+                    { size: '5', mm: '15.7 mm', circum: '49.3 mm' },
+                    { size: '6', mm: '16.5 mm', circum: '51.8 mm' },
+                    { size: '7', mm: '17.3 mm', circum: '54.4 mm' },
+                    { size: '8', mm: '18.1 mm', circum: '56.9 mm' },
+                    { size: '9', mm: '18.9 mm', circum: '59.5 mm' },
+                    { size: '10', mm: '19.8 mm', circum: '62.1 mm' },
+                  ].map((row) => (
+                    <tr key={row.size} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3 font-semibold text-gray-900">Size {row.size}</td>
+                      <td className="px-4 py-3 text-gray-700 font-medium">{row.mm}</td>
+                      <td className="px-4 py-3 text-gray-700 font-medium">{row.circum}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-8 space-y-4">
+              <h4 className="font-semibold text-deep-900 flex items-center gap-2">
+                <Check className="w-4 h-4 text-green-600" />
+                How to measure:
+              </h4>
+              <ol className="text-sm text-gray-600 space-y-2 list-decimal pl-4">
+                <li>Wrap a piece of string or paper around your finger.</li>
+                <li>Mark where the ends meet.</li>
+                <li>Measure the length against a ruler in millimeters.</li>
+                <li>Compare with the "Circumference" in the chart above.</li>
+              </ol>
+            </div>
+          </div>
+          <Button
+            className="w-full bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-black font-semibold mt-2"
+            onClick={() => setShowSizeGuide(false)}
+          >
+            Got it
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

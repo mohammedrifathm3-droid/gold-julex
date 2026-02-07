@@ -68,7 +68,9 @@ export async function GET(request: NextRequest) {
     // Parse images JSON
     const formattedProducts = products.map(product => ({
       ...product,
-      images: product.images ? JSON.parse(product.images) : []
+      images: product.images ? JSON.parse(product.images) : [],
+      features: product.features ? JSON.parse(product.features) : [],
+      sizes: product.sizes ? JSON.parse(product.sizes) : []
     }))
 
     return NextResponse.json({
@@ -129,18 +131,9 @@ export async function POST(request: NextRequest) {
     const stockQuantity = parseInt(formData.get('stockQuantity') as string)
     const categoryId = formData.get('categoryId') as string
 
-    // Handle features
-    // We'll store features as a simple JSON array string ["Anti-Tarnish", "Waterproof", ...]
+    // Handle features & sizes
     const featuresRaw = formData.get('features') as string
-    // It might come in as a JSON string from the client
-    let features: string | null = null
-    try {
-      if (featuresRaw) {
-        features = featuresRaw // Assuming it's already a JSON string or we just store the string
-      }
-    } catch (e) {
-      console.error('Error parsing features', e)
-    }
+    const sizesRaw = formData.get('sizes') as string
 
     // Handle legacy booleans for backward compatibility if features includes them
     const featuresList = featuresRaw ? JSON.parse(featuresRaw) : []
@@ -177,8 +170,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Generate slug
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+    // Generate unique slug
+    const baseSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+    const slug = `${baseSlug}-${uuidv4().substring(0, 8)}`
 
     const product = await db.product.create({
       data: {
@@ -195,7 +189,8 @@ export async function POST(request: NextRequest) {
         isAntiTarnish,
         isWaterproof,
         images: JSON.stringify(imageUrls),
-        features: featuresRaw, // Storing what we got
+        features: featuresRaw,
+        sizes: sizesRaw,
         categoryId
       },
       include: {
@@ -206,13 +201,20 @@ export async function POST(request: NextRequest) {
     const formattedProduct = {
       ...product,
       images: product.images ? JSON.parse(product.images) : [],
-      features: product.features ? JSON.parse(product.features) : []
+      features: product.features ? JSON.parse(product.features) : [],
+      sizes: product.sizes ? JSON.parse(product.sizes) : []
     }
 
     return NextResponse.json(formattedProduct)
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Product creation error:', error)
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'A product with this name already exists' },
+        { status: 400 }
+      )
+    }
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

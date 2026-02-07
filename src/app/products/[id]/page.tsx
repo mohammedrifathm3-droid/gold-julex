@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useCartStore } from '@/lib/store'
+import { useToast } from '@/hooks/use-toast'
 import {
   Star,
   Heart,
@@ -33,6 +35,7 @@ interface Product {
   isWaterproof: boolean
   material: string
   weight: number
+  sizes?: string[]
   category: {
     name: string
     slug: string
@@ -41,85 +44,7 @@ interface Product {
   reviews?: number
 }
 
-const productData: { [key: string]: Product } = {
-  '1': {
-    id: '1',
-    name: 'Golden Heart Necklace',
-    description: 'Elegant 18k gold-plated heart pendant with anti-tarnish coating',
-    priceB2c: 699,
-    priceB2b: 499,
-    images: ['/api/placeholder/600/600', '/api/placeholder/600/600', '/api/placeholder/600/600'],
-    stockQuantity: 15,
-    isAntiTarnish: true,
-    isWaterproof: true,
-    material: '18k Gold Plated',
-    weight: 5.2,
-    category: {
-      name: 'Necklaces',
-      slug: 'necklaces'
-    },
-    rating: 4.8,
-    reviews: 124
-  },
-  '2': {
-    id: '2',
-    name: 'Crystal Drop Earrings',
-    description: 'Stunning crystal earrings with waterproof design',
-    priceB2c: 549,
-    priceB2b: 399,
-    images: ['/api/placeholder/600/600', '/api/placeholder/600/600', '/api/placeholder/600/600'],
-    stockQuantity: 8,
-    isAntiTarnish: false,
-    isWaterproof: true,
-    material: 'Crystal & Silver',
-    weight: 3.8,
-    category: {
-      name: 'Earrings',
-      slug: 'earrings'
-    },
-    rating: 4.9,
-    reviews: 89
-  },
-  '3': {
-    id: '3',
-    name: 'Rose Gold Bracelet',
-    description: 'Delicate rose gold bracelet with anti-tarnish protection',
-    priceB2c: 649,
-    priceB2b: 449,
-    images: ['/api/placeholder/600/600', '/api/placeholder/600/600', '/api/placeholder/600/600'],
-    stockQuantity: 12,
-    isAntiTarnish: true,
-    isWaterproof: false,
-    material: 'Rose Gold Plated',
-    weight: 4.5,
-    category: {
-      name: 'Bracelets',
-      slug: 'bracelets'
-    },
-    rating: 4.7,
-    reviews: 156
-  },
-  '4': {
-    id: '4',
-    name: 'Silver Infinity Ring',
-    description: 'Timeless infinity design with waterproof silver finish',
-    priceB2c: 449,
-    priceB2b: 299,
-    images: ['/api/placeholder/600/600', '/api/placeholder/600/600', '/api/placeholder/600/600'],
-    stockQuantity: 20,
-    isAntiTarnish: false,
-    isWaterproof: true,
-    material: '925 Silver',
-    weight: 2.8,
-    category: {
-      name: 'Rings',
-      slug: 'rings'
-    },
-    rating: 4.6,
-    reviews: 203
-  }
-}
-
+// ... existing productData and relatedProducts ...
 const relatedProducts = [
   {
     id: '5',
@@ -162,26 +87,59 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true)
   const [selectedImage, setSelectedImage] = useState(0)
   const [quantity, setQuantity] = useState(1)
+  const [selectedSize, setSelectedSize] = useState<string>('')
   const [selectedTab, setSelectedTab] = useState('description')
 
   useEffect(() => {
-    const productId = params.id as string
-    if (productData[productId]) {
-      setProduct(productData[productId])
-      setLoading(false)
-    } else {
-      router.push('/products')
+    const fetchProduct = async () => {
+      try {
+        const productId = params.id as string
+        const res = await fetch(`/api/products/${productId}`)
+        if (!res.ok) throw new Error('Product not found')
+        const data = await res.json()
+        setProduct(data)
+        if (data.sizes && data.sizes.length > 0) {
+          setSelectedSize(data.sizes[0])
+        }
+      } catch (err) {
+        console.error('Fetch error:', err)
+        router.push('/products')
+      } finally {
+        setLoading(false)
+      }
     }
+    fetchProduct()
   }, [params.id, router])
 
+  const { addItem } = useCartStore()
+  const { toast } = useToast()
+
   const handleAddToCart = () => {
-    // Add to cart logic
-    console.log('Added to cart:', product?.name, quantity)
+    if (!product) return
+
+    addItem({
+      id: Math.random().toString(36).substr(2, 9),
+      product: {
+        id: product.id,
+        name: product.name,
+        priceB2c: product.priceB2c,
+        priceB2b: product.priceB2b,
+        images: product.images,
+        stockQuantity: product.stockQuantity,
+        selectedSize: selectedSize
+      },
+      quantity: quantity
+    })
+
+    toast({
+      title: "Added to Cart",
+      description: `${product.name} (${selectedSize ? `Size: ${selectedSize}, ` : ''}Qty: ${quantity}) has been added to your cart.`,
+    })
   }
 
   const handleBuyNow = () => {
-    // Buy now logic
-    console.log('Buy now:', product?.name, quantity)
+    handleAddToCart()
+    router.push('/checkout')
   }
 
   const handleWhatsAppOrder = () => {
@@ -323,6 +281,26 @@ export default function ProductDetailPage() {
             </div>
 
             <div className="space-y-4">
+              {product.sizes && product.sizes.length > 0 && (
+                <div className="space-y-3">
+                  <span className="text-sm font-medium">Select Size (US):</span>
+                  <div className="flex flex-wrap gap-2">
+                    {product.sizes.map((size) => (
+                      <button
+                        key={size}
+                        onClick={() => setSelectedSize(size)}
+                        className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${selectedSize === size
+                          ? 'border-yellow-500 bg-yellow-50 text-yellow-700 shadow-sm'
+                          : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                          }`}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-center gap-4">
                 <span className="text-sm font-medium">Quantity:</span>
                 <div className="flex items-center border rounded-lg">

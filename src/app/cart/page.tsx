@@ -52,7 +52,8 @@ export default function CartPage() {
               priceB2c: item.product.priceB2c,
               priceB2b: item.product.priceB2b,
               images: item.product.images ? JSON.parse(item.product.images) : [],
-              stockQuantity: item.product.stockQuantity
+              stockQuantity: item.product.stockQuantity,
+              selectedSize: item.selectedSize
             },
             quantity: item.quantity
           }))
@@ -157,6 +158,11 @@ export default function CartPage() {
                         <div className="flex justify-between mb-2">
                           <div>
                             <h3 className="font-semibold text-lg">{item.product.name}</h3>
+                            {item.product.selectedSize && (
+                              <Badge variant="secondary" className="mt-1">
+                                Size: {item.product.selectedSize}
+                              </Badge>
+                            )}
                           </div>
                           <Button
                             variant="ghost"

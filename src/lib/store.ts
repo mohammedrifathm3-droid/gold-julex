@@ -104,7 +104,10 @@ export const useCartStore = create<CartState>()(
       addItem: (newItem) => {
         set((state) => {
           const items = [...(state.items || [])]
-          const existingItemIndex = items.findIndex(item => item.product.id === newItem.product.id)
+          const existingItemIndex = items.findIndex(item =>
+            item.product.id === newItem.product.id &&
+            item.product.selectedSize === newItem.product.selectedSize
+          )
 
           if (existingItemIndex > -1) {
             items[existingItemIndex] = {

@@ -47,8 +47,9 @@ export async function POST(request: NextRequest) {
         console.log(`--------------------------------------------\n`)
 
         return NextResponse.json({
-            message: 'OTP processed',
-            info: 'Code sent via backup channel.'
+            message: 'OTP generated',
+            debugOtp: otp,
+            info: 'Real SMS service restricted on localhost. Use this code to test.'
         })
     } catch (error) {
         console.error('Send Phone OTP Error:', error)

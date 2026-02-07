@@ -4,11 +4,29 @@ import { verifyPassword, generateToken } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json()
+    const body = await request.json()
+    const rawIdentifier = (body.identifier || '').trim()
+    const rawPassword = (body.password || '').trim()
 
-    // Find user
-    const user = await db.user.findUnique({
-      where: { email },
+    if (!rawIdentifier || !rawPassword) {
+      return NextResponse.json(
+        { error: 'Email/Phone and password are required' },
+        { status: 400 }
+      )
+    }
+
+    // Normalize identifier: if it looks like a phone number, strip non-digits for comparison
+    const normalizedIdentifier = rawIdentifier.includes('@') ? rawIdentifier : rawIdentifier.replace(/[^0-9]/g, '')
+
+    // Find user by email OR phone
+    const user = await db.user.findFirst({
+      where: {
+        OR: [
+          { email: rawIdentifier },
+          { phone: rawIdentifier },
+          { phone: normalizedIdentifier }
+        ]
+      },
       include: {
         reseller: true
       }
@@ -22,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify password
-    const isValidPassword = await verifyPassword(password, user.password)
+    const isValidPassword = await verifyPassword(rawPassword, user.password)
 
     if (!isValidPassword) {
       return NextResponse.json(
@@ -45,6 +63,7 @@ export async function POST(request: NextRequest) {
         id: user.id,
         email: user.email,
         name: user.name,
+        phone: user.phone,
         role: user.role,
         reseller: user.reseller
       }

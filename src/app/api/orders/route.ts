@@ -164,7 +164,8 @@ export async function POST(request: NextRequest) {
         productId: item.productId,
         quantity: item.quantity,
         unitPrice,
-        totalPrice
+        totalPrice,
+        selectedSize: item.selectedSize
       })
     }
 

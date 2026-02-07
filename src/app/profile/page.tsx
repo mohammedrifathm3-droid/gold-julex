@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { User, Mail, Phone, MapPin, ShoppingBag, Heart, Settings, LogOut, Camera, ArrowRight, Shield, Award, Edit, Trash2, Loader2, Package, Clock, CheckCircle, AlertCircle } from 'lucide-react'
+import { User, Mail, Phone, MapPin, ShoppingBag, Heart, Settings, LogOut, Camera, ArrowRight, Shield, Award, Edit, Trash2, Loader2, Package, Clock, CheckCircle, AlertCircle, Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 import { useAuthStore, useWishlistStore } from '@/lib/store'
 import { useRouter } from 'next/navigation'
@@ -72,6 +72,16 @@ export default function ProfilePage() {
     country: 'India',
     isDefault: false
   })
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
+  const [loadingPass, setLoadingPass] = useState(false)
+  const [passData, setPassData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  })
+  const [showCurrentPass, setShowCurrentPass] = useState(false)
+  const [showNewPass, setShowNewPass] = useState(false)
+  const [showConfirmPass, setShowConfirmPass] = useState(false)
 
   const { toast } = useToast()
 
@@ -83,7 +93,7 @@ export default function ProfilePage() {
       setProfileData({
         name: user.name || '',
         email: user.email || '',
-        phone: '' // Phone not currently in user object, would need API
+        phone: user.phone || ''
       })
       fetchOrders()
       fetchAddresses()
@@ -252,6 +262,41 @@ export default function ProfilePage() {
     router.push('/')
   }
 
+  const handleChangePassword = async () => {
+    if (passData.newPassword !== passData.confirmPassword) {
+      toast({ title: "Error", description: "New passwords do not match", variant: "destructive" })
+      return
+    }
+
+    try {
+      setLoadingPass(true)
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          currentPassword: passData.currentPassword,
+          newPassword: passData.newPassword
+        })
+      })
+
+      const data = await res.json()
+      if (res.ok) {
+        toast({ title: "Success", description: "Password changed successfully" })
+        setIsChangingPassword(false)
+        setPassData({ currentPassword: '', newPassword: '', confirmPassword: '' })
+      } else {
+        throw new Error(data.error || 'Failed to change password')
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } finally {
+      setLoadingPass(false)
+    }
+  }
+
   const { items: wishlistItems } = useWishlistStore()
 
   if (!user) return null
@@ -390,6 +435,10 @@ export default function ProfilePage() {
                           <span>{user.email}</span>
                         </div>
                         <div className="flex items-center justify-center sm:justify-start gap-2">
+                          <Phone className="w-4 h-4" />
+                          <span>{user.phone || 'No phone number added'}</span>
+                        </div>
+                        <div className="flex items-center justify-center sm:justify-start gap-2">
                           <Award className="w-4 h-4" />
                           <span>Member</span>
                         </div>
@@ -432,15 +481,29 @@ export default function ProfilePage() {
                         <p className="font-medium text-purple-900">{user.reseller.businessType}</p>
                       </div>
                       <div>
+                        <span className="text-gray-600">GST Number:</span>
+                        <p className="font-medium text-purple-900">{user.reseller.gstNumber || 'Not provided'}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">PIN Code:</span>
+                        <p className="font-medium text-purple-900">{user.reseller.pincode || 'Not provided'}</p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <span className="text-gray-600">Business Address:</span>
+                        <p className="font-medium text-purple-900">
+                          {user.reseller.address}, {user.reseller.city}, {user.reseller.state}
+                        </p>
+                      </div>
+                      <div>
                         <span className="text-gray-600">Status:</span>
                         <div className="flex items-center gap-2 mt-1">
                           {user.reseller.isVerified ? (
                             <span className="flex items-center gap-1 text-green-700 font-medium">
-                              <Shield className="w-4 h-4" /> Verified
+                              <Shield className="w-4 h-4" /> Verified Reseller
                             </span>
                           ) : (
                             <span className="flex items-center gap-1 text-yellow-700 font-medium">
-                              Pending Verification
+                              <AlertCircle className="w-4 h-4" /> Verification Pending
                             </span>
                           )}
                         </div>
@@ -765,12 +828,87 @@ export default function ProfilePage() {
                     Security
                   </h3>
                   <div className="space-y-3">
-                    <button className="w-full text-left px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors">
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-900">Change Password</span>
-                        <ArrowRight className="w-4 h-4 text-gray-400" />
-                      </div>
-                    </button>
+                    <Dialog open={isChangingPassword} onOpenChange={setIsChangingPassword}>
+                      <DialogTrigger asChild>
+                        <button className="w-full text-left px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors">
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-900">Change Password</span>
+                            <ArrowRight className="w-4 h-4 text-gray-400" />
+                          </div>
+                        </button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Change Password</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                          <div className="space-y-2">
+                            <Label>Current Password</Label>
+                            <div className="relative">
+                              <Input
+                                type={showCurrentPass ? "text" : "password"}
+                                value={passData.currentPassword}
+                                onChange={e => setPassData(p => ({ ...p, currentPassword: e.target.value }))}
+                                className="pr-10"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowCurrentPass(!showCurrentPass)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                              >
+                                {showCurrentPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                              </button>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>New Password</Label>
+                            <div className="relative">
+                              <Input
+                                type={showNewPass ? "text" : "password"}
+                                value={passData.newPassword}
+                                onChange={e => setPassData(p => ({ ...p, newPassword: e.target.value }))}
+                                className="pr-10"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowNewPass(!showNewPass)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                              >
+                                {showNewPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                              </button>
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Confirm New Password</Label>
+                            <div className="relative">
+                              <Input
+                                type={showConfirmPass ? "text" : "password"}
+                                value={passData.confirmPassword}
+                                onChange={e => setPassData(p => ({ ...p, confirmPassword: e.target.value }))}
+                                className="pr-10"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowConfirmPass(!showConfirmPass)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                              >
+                                {showConfirmPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button variant="outline" onClick={() => setIsChangingPassword(false)}>Cancel</Button>
+                          <Button
+                            className="bg-yellow-400 hover:bg-yellow-500 text-black"
+                            onClick={handleChangePassword}
+                            disabled={loadingPass}
+                          >
+                            {loadingPass ? 'Changing...' : 'Update Password'}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
                   </div>
                 </div>
               </div>

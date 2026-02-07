@@ -76,10 +76,11 @@ export default function CheckoutPage() {
   const orderItems = cartItems.map(item => ({
     id: item.product.id,
     name: item.product.name,
-    price: item.product.priceB2c, // Use appropriate price logic if needed
+    price: item.product.priceB2c,
     image: item.product.images[0] || '/placeholder-jewelry.jpg',
     quantity: item.quantity,
-    isAntiTarnish: false, // You might want to add these to product model if needed
+    selectedSize: item.product.selectedSize,
+    isAntiTarnish: false,
     isWaterproof: false
   }))
 
@@ -276,16 +277,14 @@ export default function CheckoutPage() {
             body: JSON.stringify({ phone: shippingInfo.phone })
           })
 
+          const data = await res.json()
           setPhoneVerificationMethod('server')
           setShowPhoneOtp(true)
           setPhoneCooldown(60)
 
           toast({
-            title: "Verification Initiated",
-            description: firebaseErr.code === 'auth/network-request-failed'
-              ? "Firebase is blocked by dashboard settings (localhost not authorized). Using backup system."
-              : "Problem with SMS delivery. Please check the backup system console.",
-            variant: "default"
+            title: "Code Ready (Fail-Safe)",
+            description: data.debugOtp ? `[DEV] Your code is: ${data.debugOtp}` : "Verification code generated.",
           })
         }
       } else {
@@ -301,8 +300,8 @@ export default function CheckoutPage() {
         setShowEmailOtp(true)
         setEmailCooldown(60)
         toast({
-          title: "Email Sent",
-          description: "Real verification code sent to your inbox."
+          title: data.debugOtp ? "Code Ready (Dev Mode)" : "Email Sent",
+          description: data.debugOtp ? `[DEV] Your code is: ${data.debugOtp}` : "Verification code sent to your email."
         })
       }
     } catch (err: any) {
@@ -379,7 +378,8 @@ export default function CheckoutPage() {
       const orderPayload = {
         items: cartItems.map(item => ({
           productId: item.product.id,
-          quantity: item.quantity
+          quantity: item.quantity,
+          selectedSize: item.product.selectedSize
         })),
         shippingAddress: shippingInfo,
         billingAddress: shippingInfo,
@@ -816,7 +816,10 @@ export default function CheckoutPage() {
                           </Badge>
                         )}
                       </div>
-                      <p className="text-sm text-gray-600">Qty: {item.quantity}</p>
+                      <p className="text-sm text-gray-600">
+                        Qty: {item.quantity}
+                        {item.selectedSize && ` • Size: ${item.selectedSize}`}
+                      </p>
                     </div>
                     <div className="text-right">
                       <p className="font-medium">₹{item.price * item.quantity}</p>

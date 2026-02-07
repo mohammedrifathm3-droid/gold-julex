@@ -10,11 +10,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { useAuthStore } from '@/lib/store'
+import { useAuthStore, useCartStore } from '@/lib/store'
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
-    email: '',
+    identifier: '',
     password: ''
   })
   const [loading, setLoading] = useState(false)
@@ -43,6 +43,13 @@ export default function LoginPage() {
       }
 
       login(data.user, data.token)
+
+      // Sync B2B status for verified resellers
+      if (data.user.role === 'reseller' && data.user.reseller?.isVerified) {
+        useCartStore.getState().setIsB2B(true)
+      } else {
+        useCartStore.getState().setIsB2B(false)
+      }
 
       // Redirect based on user role
       if (data.user.role === 'reseller') {
@@ -104,13 +111,13 @@ export default function LoginPage() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="identifier">Email or Phone Number</Label>
                 <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={formData.email}
+                  id="identifier"
+                  name="identifier"
+                  type="text"
+                  placeholder="Enter your email or phone"
+                  value={formData.identifier}
                   onChange={handleChange}
                   required
                   className="bg-gray-50 border-gray-200 focus:border-yellow-400 focus:ring-yellow-400"

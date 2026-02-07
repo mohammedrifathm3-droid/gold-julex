@@ -66,15 +66,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { productId, quantity } = await request.json()
+    const { productId, quantity, selectedSize } = await request.json()
 
     // check if item exists
-    const existingItem = await db.cartItem.findUnique({
+    const existingItem = await db.cartItem.findFirst({
       where: {
-        userId_productId: {
-          userId: user.userId,
-          productId
-        }
+        userId: user.userId,
+        productId,
+        selectedSize: selectedSize || null
       }
     })
 
@@ -90,7 +89,8 @@ export async function POST(request: NextRequest) {
       data: {
         userId: user.userId,
         productId,
-        quantity
+        quantity,
+        selectedSize: selectedSize || null
       }
     })
 
@@ -108,14 +108,13 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { productId, quantity } = await request.json()
+    const { productId, quantity, selectedSize } = await request.json()
 
-    const existingItem = await db.cartItem.findUnique({
+    const existingItem = await db.cartItem.findFirst({
       where: {
-        userId_productId: {
-          userId: user.userId,
-          productId
-        }
+        userId: user.userId,
+        productId,
+        selectedSize: selectedSize || null
       }
     })
 
@@ -140,15 +139,22 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { productId } = await request.json()
+    const { productId, selectedSize } = await request.json()
+
+    const existingItem = await db.cartItem.findFirst({
+      where: {
+        userId: user.userId,
+        productId: productId,
+        selectedSize: selectedSize || null
+      }
+    })
+
+    if (!existingItem) {
+      return NextResponse.json({ error: 'Item not found' }, { status: 404 })
+    }
 
     await db.cartItem.delete({
-      where: {
-        userId_productId: {
-          userId: user.userId,
-          productId
-        }
-      }
+      where: { id: existingItem.id }
     })
 
     return NextResponse.json({ success: true })

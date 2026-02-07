@@ -38,9 +38,12 @@ export async function POST(request: NextRequest) {
         })
 
         // Send REAL email via Resend
+        console.log(`\n[EMAIL OTP SYSTEM] TARGET: ${email}`)
+        console.log(`[EMAIL OTP SYSTEM] CODE: ${otp}\n`)
+
         try {
             const { data, error } = await resend.emails.send({
-                from: 'Julex <onboarding@resend.dev>', // Update this with your verified domain in production
+                from: 'Julex <onboarding@resend.dev>',
                 to: [email],
                 subject: 'Your Verification Code',
                 html: `
@@ -61,6 +64,16 @@ export async function POST(request: NextRequest) {
 
             if (error) {
                 console.error('Resend Error:', error)
+
+                // Restore Sandbox Fallback for easy testing
+                if (process.env.NODE_ENV === 'development') {
+                    return NextResponse.json({
+                        message: 'OTP generated (Dev Mode)',
+                        debugOtp: otp,
+                        info: 'Resend unverified. Use this code to test: ' + otp
+                    })
+                }
+
                 return NextResponse.json({ error: error.message || 'Failed to send email.' }, { status: 500 })
             }
         } catch (emailError: any) {

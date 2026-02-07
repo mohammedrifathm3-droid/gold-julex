@@ -25,7 +25,8 @@ export async function GET(
     const formattedProduct = {
       ...product,
       images: product.images ? JSON.parse(product.images) : [],
-      features: product.features ? JSON.parse(product.features) : []
+      features: product.features ? JSON.parse(product.features) : [],
+      sizes: product.sizes ? JSON.parse(product.sizes) : []
     }
 
     return NextResponse.json(formattedProduct)
@@ -87,6 +88,9 @@ export async function PUT(
     const isAntiTarnish = featuresList.includes('Anti-Tarnish')
     const isWaterproof = featuresList.includes('Waterproof')
 
+    // Handle sizes
+    const sizesRaw = formData.get('sizes') as string
+
     // Handle Images
     // formData.getAll('images') can contain both Strings (existing URLs) and Files (new uploads)
     const imageEntries = formData.getAll('images')
@@ -127,6 +131,7 @@ export async function PUT(
         isAntiTarnish,
         isWaterproof,
         features: featuresRaw,
+        sizes: sizesRaw,
         images: JSON.stringify(finalImageUrls)
       },
       include: {
@@ -137,13 +142,20 @@ export async function PUT(
     const formattedProduct = {
       ...product,
       images: product.images ? JSON.parse(product.images) : [],
-      features: product.features ? JSON.parse(product.features) : []
+      features: product.features ? JSON.parse(product.features) : [],
+      sizes: product.sizes ? JSON.parse(product.sizes) : []
     }
 
     return NextResponse.json(formattedProduct)
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Product update error:', error)
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'A product with this name already exists' },
+        { status: 400 }
+      )
+    }
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
