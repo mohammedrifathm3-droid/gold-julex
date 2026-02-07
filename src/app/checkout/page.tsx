@@ -106,8 +106,8 @@ export default function CheckoutPage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const [isEmailVerified, setIsEmailVerified] = useState(true)
-  const [isPhoneVerified, setIsPhoneVerified] = useState(true)
+  const [isEmailVerified, setIsEmailVerified] = useState(false)
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false)
   const [verifyingEmail, setVerifyingEmail] = useState(false)
   const [verifyingPhone, setVerifyingPhone] = useState(false)
   const [showEmailOtp, setShowEmailOtp] = useState(false)
@@ -490,6 +490,7 @@ export default function CheckoutPage() {
                           value={shippingInfo.email}
                           onChange={(e) => {
                             setShippingInfo({ ...shippingInfo, email: e.target.value })
+                            setIsEmailVerified(false)
                             if (errors.email) setErrors(prev => ({ ...prev, email: '' }))
                           }}
                           placeholder="Enter your email"
@@ -497,7 +498,50 @@ export default function CheckoutPage() {
                           readOnly={isEmailVerified}
                         />
                         {errors.email && <p className="text-red-500 text-[10px] mt-1">{errors.email}</p>}
-                        {/* Verification removed for testing */}
+                        {!isEmailVerified && !showEmailOtp && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="mt-1 text-xs text-yellow-600 h-auto p-0"
+                            onClick={() => sendOtp('email')}
+                            disabled={verifyingEmail || !shippingInfo.email}
+                          >
+                            {verifyingEmail ? 'Sending...' : 'Verify Email'}
+                          </Button>
+                        )}
+                        {showEmailOtp && (
+                          <div className="mt-2 space-y-2">
+                            <Input
+                              placeholder="Enter 6-digit OTP"
+                              value={emailOtp}
+                              onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                              className="h-8 text-sm"
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="h-7 text-xs bg-yellow-600"
+                                onClick={() => checkOtp('email')}
+                                disabled={verifyingOtp || emailOtp.length !== 6}
+                              >
+                                {verifyingOtp ? 'Verifying...' : 'Confirm OTP'}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => setShowEmailOtp(false)}
+                                disabled={verifyingOtp}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                        {isEmailVerified && <p className="text-green-600 text-xs mt-1 font-medium">✓ Email Verified</p>}
                       </div>
                     </div>
 
@@ -511,6 +555,7 @@ export default function CheckoutPage() {
                           onChange={(e) => {
                             const val = e.target.value.replace(/\D/g, '').slice(0, 10)
                             setShippingInfo({ ...shippingInfo, phone: val })
+                            setIsPhoneVerified(false)
                             if (errors.phone) setErrors(prev => ({ ...prev, phone: '' }))
                           }}
                           placeholder="Enter your phone number"
@@ -518,7 +563,51 @@ export default function CheckoutPage() {
                           readOnly={isPhoneVerified}
                         />
                         {errors.phone && <p className="text-red-500 text-[10px] mt-1">{errors.phone}</p>}
-                        {/* Verification removed for testing */}
+                        {!isPhoneVerified && !showPhoneOtp && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="mt-1 text-xs text-yellow-600 h-auto p-0"
+                            onClick={() => sendOtp('phone')}
+                            disabled={verifyingPhone || !shippingInfo.phone}
+                          >
+                            {verifyingPhone ? 'Sending...' : 'Verify Phone'}
+                          </Button>
+                        )}
+                        <div id="recaptcha-container"></div>
+                        {showPhoneOtp && (
+                          <div className="mt-2 space-y-2">
+                            <Input
+                              placeholder="Enter 6-digit OTP"
+                              value={phoneOtp}
+                              onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                              className="h-8 text-sm"
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="h-7 text-xs bg-yellow-600"
+                                onClick={() => checkOtp('phone')}
+                                disabled={verifyingOtp || phoneOtp.length !== 6}
+                              >
+                                {verifyingOtp ? 'Verifying...' : 'Confirm OTP'}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => setShowPhoneOtp(false)}
+                                disabled={verifyingOtp}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                        {isPhoneVerified && <p className="text-green-600 text-xs mt-1 font-medium">✓ Phone Verified</p>}
                       </div>
                       <div>
                         <Label htmlFor="pincode" className={errors.pincode ? "text-red-500" : ""}>PIN Code *</Label>
