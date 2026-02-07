@@ -1,0 +1,217 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// UserRole: customer, reseller, admin
+// OrderType: B2C, B2B
+// PaymentStatus: pending, paid, failed, refunded
+
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  name            String
+  password        String
+  phone           String?
+  role            String   @default("customer")
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  reseller        Reseller?
+  orders          Order[]
+  cartItems       CartItem[]
+  wishlistItems   WishlistItem[]
+  addresses       Address[]
+  
+  @@map("users")
+}
+
+model Address {
+  id          String   @id @default(cuid())
+  userId      String
+  label       String   @default("Home") // Home, Work, etc.
+  fullName    String
+  email       String
+  phone       String
+  street      String
+  city        String
+  state       String
+  pincode     String
+  country     String   @default("India")
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("addresses")
+}
+
+model Reseller {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  gstNumber     String?  @unique
+  creditLimit   Float    @default(0)
+  businessType  String
+  businessName  String
+  address       String?
+  city          String?
+  state         String?
+  pincode       String?
+  isVerified    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  products      Product[]
+  
+  @@map("resellers")
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  image       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  products    Product[]
+  
+  @@map("categories")
+}
+
+model Product {
+  id              String   @id @default(cuid())
+  name            String
+  slug            String   @unique
+  description     String?
+  material        String
+  weight          Float    // in grams
+  priceB2c        Float
+  priceB2b        Float?
+  stockQuantity   Int      @default(0)
+  isAntiTarnish   Boolean  @default(false)
+  isWaterproof    Boolean  @default(false)
+  images          String?  // JSON string array of image URLs
+  features        String?  // JSON string array of features
+  
+  // Reseller Fields
+  cost            Float?   @default(0)
+  discount        Float?   @default(0) // Percentage
+  minQuantity     Int      @default(10)
+
+  isActive        Boolean  @default(true)
+  categoryId      String
+  resellerId      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  category        Category @relation(fields: [categoryId], references: [id])
+  reseller        Reseller? @relation(fields: [resellerId], references: [id])
+  orderItems      OrderItem[]
+  cartItems       CartItem[]
+  wishlistItems   WishlistItem[]
+  
+  @@map("products")
+}
+
+model Order {
+  id              String        @id @default(cuid())
+  orderNumber     String        @unique
+  userId          String
+  orderType       String
+  subtotal        Float
+  tax             Float         @default(0)
+  shipping        Float         @default(0)
+  total           Float
+  status          String        @default("pending")
+  razorpayOrderId String?
+  razorpayPaymentId String?
+  shippingAddress String?       // String representation of JSON for SQLite
+  billingAddress  String?       // String representation of JSON for SQLite
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  // Relations
+  user            User          @relation(fields: [userId], references: [id])
+  items           OrderItem[]
+  
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String @id @default(cuid())
+  orderId     String
+  productId   String
+  quantity    Int
+  unitPrice   Float
+  totalPrice  Float
+  
+  // Relations
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product @relation(fields: [productId], references: [id])
+  
+  @@map("order_items")
+}
+
+model CartItem {
+  id        String @id @default(cuid())
+  userId    String
+  productId String
+  quantity  Int    @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, productId])
+  @@map("cart_items")
+}
+
+model WishlistItem {
+  id        String @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+  
+  // Relations
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, productId])
+  @@map("wishlist_items")
+}
+
+model OTP {
+  id        String   @id @default(cuid())
+  target    String   // email or phone
+  token     String   // hashed otp
+  type      String   // "email" or "phone"
+  expires   DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([target, type])
+  @@map("otps")
+}
